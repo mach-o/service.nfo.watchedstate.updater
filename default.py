@@ -94,7 +94,7 @@ class NFOWatchedstateUpdater():
 
                 filepath = jsonmsg["result"]["moviedetails"]["file"]
 
-                self.updateNFO(filepath, itemplaycount)
+                self.updateNFO(filepath, itemplaycount, itemtype)
 
 
             ##When a season is marked as un-/watched, all episodes are edited
@@ -104,13 +104,13 @@ class NFOWatchedstateUpdater():
 
                 filepath = jsonmsg["result"]["episodedetails"]["file"]
 
-                self.updateNFO(filepath, itemplaycount)
+                self.updateNFO(filepath, itemplaycount, itemtype)
 
 
             #if itemtype == u'tvshow':
                 
         
-    def updateNFO(self, filepath, playcount):
+    def updateNFO(self, filepath, playcount, itemtype):
         filepath = filepath.replace(path.splitext(filepath)[1], '.nfo')
 
         if xbmcvfs.exists(filepath):
@@ -126,41 +126,39 @@ class NFOWatchedstateUpdater():
 
             sFile.close()
             
-            tree = ET.ElementTree(ET.fromstring(msg))
+            tree = ET.ElementTree(ET.fromstring(msg)) # crashes if msg empty
             root = tree.getroot()
+        else:
+            root = ET.Element(itemtype)
 
-            p = root.find('playcount')
-            if p is None:
-                p = ET.SubElement(root, 'playcount')
-            p.text = str(playcount)
+        p = root.find('playcount')
+        if p is None:
+            p = ET.SubElement(root, 'playcount')
+        p.text = str(playcount)
 
-            if addon.getSetting('changewatchedtag') == 'true':
-                w = root.find('watched')
-                if (w is None) and (addon.getSetting('createwatchedtag') == 'true'):
-                    w = ET.SubElement(root, 'watched')
-                if playcount > 0:
-                    w.text = 'true'
-                else:
-                    w.text = 'false'
-
-            self.prettyPrintXML(root)
-            
-            msg = ET.tostring(root, encoding='UTF-8')
-
-            if msg:
-                dFile = xbmcvfs.File(filepath, 'w')
-                dFile.write(msg) ##String msg or bytearray: bytearray(msg)
-                dFile.close()
-
-                #if addon.getSetting('notification') == 'true':
-                #    xbmc.executebuiltin('Notification(%s, NFO updated, %s, %s)' %(addon_name, noti_duration, logo) )
+        if addon.getSetting('changewatchedtag') == 'true':
+            w = root.find('watched')
+            if (w is None) and (addon.getSetting('createwatchedtag') == 'true'):
+                w = ET.SubElement(root, 'watched')
+            if playcount > 0:
+                w.text = 'true'
             else:
-                if addon.getSetting('notification') == 'true':
-                    xbmc.executebuiltin('Notification(%s, Error occured, %s, %s)' %(addon_name, delay, logo) )
+                w.text = 'false'
 
+        self.prettyPrintXML(root)
+        
+        msg = ET.tostring(root, encoding='UTF-8')
+
+        if msg:
+            dFile = xbmcvfs.File(filepath, 'w')
+            dFile.write(msg) ##String msg or bytearray: bytearray(msg)
+            dFile.close()
+
+            #if addon.getSetting('notification') == 'true':
+            #    xbmc.executebuiltin('Notification(%s, NFO updated, %s, %s)' %(addon_name, noti_duration, logo) )
         else:
             if addon.getSetting('notification') == 'true':
-                xbmc.executebuiltin('Notification(%s, File not found, %s, %s)' %(addon_name, delay, logo) )
+                xbmc.executebuiltin('Notification(%s, Error occured, %s, %s)' %(addon_name, delay, logo) )
 
 
     def prettyPrintXML(self, elem, level=0):
